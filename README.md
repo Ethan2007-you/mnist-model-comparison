@@ -1,16 +1,18 @@
 # MNIST 模型比较
 
-这是一个用于学习机器学习分类流程的入门项目。项目使用 PyTorch 全连接神经网络、scikit-learn 线性 SVM 和随机森林识别 MNIST 手写数字。神经网络部分比较不同 Dropout 比例；传统模型部分记录验证集、测试集准确率、训练时间和测试集混淆矩阵。
+这是一个用于学习机器学习分类流程的入门项目。项目使用 PyTorch 全连接神经网络、卷积神经网络（CNN）、scikit-learn 线性 SVM 和随机森林识别 MNIST 手写数字。MLP 部分比较不同 Dropout 比例；各模型使用相同的数据划分，并记录验证集和测试集指标。
 
 ## 当前功能
 
 - 下载并加载 MNIST 数据集
 - 将官方训练集拆分为训练集（50,000 张）和验证集（10,000 张）
 - 比较 Dropout 比例 `0.0`、`0.2` 和 `0.5`
+- 使用基础 CNN 提取图片中的局部笔画特征
 - 使用 `LinearSVC` 作为线性核 SVM 基线
 - 使用 `RandomForestClassifier` 作为树模型基线
-- 根据验证集准确率选择模型，再对测试集进行一次最终评估
+- 根据验证集准确率为各个模型选择配置或训练轮次，再进行最终测试集评估
 - 将神经网络每轮训练记录保存到 `results/dropout_comparison.csv`
+- 将 CNN 每轮训练记录、最终指标和测试集混淆矩阵分别保存到 `results/` 下的 CSV 文件
 - 将 SVM 和随机森林的调参记录、最终指标及测试集混淆矩阵分别保存到 `results/` 下的 CSV 文件
 - 神经网络可用时自动使用 CUDA；SVM 和随机森林使用 CPU
 
@@ -42,6 +44,20 @@ python src/train_nn.py
 ```powershell
 python src/train_nn.py --epochs 5 --dropout-rates 0.0 0.2 0.5
 ```
+
+运行基础 CNN：
+
+```powershell
+python src/train_cnn.py
+```
+
+默认训练 5 轮，使用两层卷积和最大池化保留图像空间结构。可调整训练轮数、批次大小和学习率：
+
+```powershell
+python src/train_cnn.py --epochs 5 --batch-size 64 --learning-rate 0.001
+```
+
+CNN 会根据验证集准确率保留最佳轮次的权重，再对测试集进行最终评估。训练记录写入 `results/cnn_training_history.csv`，测试指标和混淆矩阵分别写入 `results/cnn_metrics.csv` 和 `results/cnn_confusion_matrix.csv`。
 
 运行线性 SVM：
 
@@ -92,6 +108,7 @@ mnist-model-comparison/
 ├── src/
 │   ├── mnist_data.py
 │   ├── train_nn.py
+│   ├── train_cnn.py
 │   ├── train_svm.py
 │   └── train_random_forest.py
 ├── data/       # 运行时下载，不提交到 Git
