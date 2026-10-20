@@ -10,12 +10,10 @@ from pathlib import Path
 
 import torch
 from torch import nn
-from torch.utils.data import DataLoader, random_split
-from torchvision import datasets, transforms
+from torch.utils.data import DataLoader
 
+from mnist_data import PROJECT_ROOT, prepare_datasets
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = PROJECT_ROOT / "data"
 RESULTS_DIR = PROJECT_ROOT / "results"
 SEED = 42
 
@@ -29,23 +27,6 @@ def create_model(dropout_rate: float) -> nn.Sequential:
         nn.Dropout(p=dropout_rate),
         nn.Linear(128, 10),
     )
-
-
-def prepare_datasets(seed: int):
-    """Download MNIST and split its official training set into train/validation."""
-    transform = transforms.ToTensor()
-    full_train = datasets.MNIST(
-        root=str(DATA_DIR), train=True, download=True, transform=transform
-    )
-    test_data = datasets.MNIST(
-        root=str(DATA_DIR), train=False, download=True, transform=transform
-    )
-    train_data, val_data = random_split(
-        full_train,
-        [50_000, 10_000],
-        generator=torch.Generator().manual_seed(seed),
-    )
-    return train_data, val_data, test_data
 
 
 @torch.no_grad()
