@@ -8,31 +8,14 @@ import time
 from pathlib import Path
 
 import numpy as np
-import torch
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.svm import LinearSVC
-from torch.utils.data import Subset
 
-from mnist_data import PROJECT_ROOT, prepare_datasets
+from mnist_data import PROJECT_ROOT, flatten_dataset, prepare_datasets
 
 
 RESULTS_DIR = PROJECT_ROOT / "results"
 SEED = 42
-
-
-def to_numpy(dataset) -> tuple[np.ndarray, np.ndarray]:
-    """Flatten MNIST images into 784 pixel features and return their labels."""
-    if isinstance(dataset, Subset):
-        indices = torch.as_tensor(dataset.indices, dtype=torch.long)
-        base_dataset = dataset.dataset
-        images = base_dataset.data[indices]
-        labels = base_dataset.targets[indices]
-    else:
-        images = dataset.data
-        labels = dataset.targets
-
-    features = images.reshape(len(images), -1).to(torch.float32).div_(255.0)
-    return features.numpy(), labels.numpy()
 
 
 def save_metrics(rows: list[dict], output_path: Path, append: bool = False) -> None:
@@ -105,9 +88,9 @@ def main() -> None:
         raise ValueError("max-iter must be positive.")
 
     train_data, val_data, test_data = prepare_datasets(SEED)
-    train_x, train_y = to_numpy(train_data)
-    val_x, val_y = to_numpy(val_data)
-    test_x, test_y = to_numpy(test_data)
+    train_x, train_y = flatten_dataset(train_data)
+    val_x, val_y = flatten_dataset(val_data)
+    test_x, test_y = flatten_dataset(test_data)
 
     if args.max_train_samples < len(train_x):
         train_x = train_x[: args.max_train_samples]

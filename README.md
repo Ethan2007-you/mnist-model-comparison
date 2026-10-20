@@ -1,6 +1,6 @@
 # MNIST 模型比较
 
-这是一个用于学习机器学习分类流程的入门项目。项目使用 PyTorch 全连接神经网络和 scikit-learn 线性 SVM 识别 MNIST 手写数字。神经网络部分比较不同 Dropout 比例；SVM 部分记录验证集、测试集准确率、训练时间和测试集混淆矩阵。后续可以继续加入随机森林。
+这是一个用于学习机器学习分类流程的入门项目。项目使用 PyTorch 全连接神经网络、scikit-learn 线性 SVM 和随机森林识别 MNIST 手写数字。神经网络部分比较不同 Dropout 比例；传统模型部分记录验证集、测试集准确率、训练时间和测试集混淆矩阵。
 
 ## 当前功能
 
@@ -8,10 +8,11 @@
 - 将官方训练集拆分为训练集（50,000 张）和验证集（10,000 张）
 - 比较 Dropout 比例 `0.0`、`0.2` 和 `0.5`
 - 使用 `LinearSVC` 作为线性核 SVM 基线
+- 使用 `RandomForestClassifier` 作为树模型基线
 - 根据验证集准确率选择模型，再对测试集进行一次最终评估
 - 将神经网络每轮训练记录保存到 `results/dropout_comparison.csv`
-- 将 SVM 调参记录保存到 `results/svm_tuning.csv`，最终指标保存到 `results/svm_metrics.csv`，测试集混淆矩阵保存到 `results/svm_confusion_matrix.csv`
-- 自动使用 CUDA（可用时），否则使用 CPU
+- 将 SVM 和随机森林的调参记录、最终指标及测试集混淆矩阵分别保存到 `results/` 下的 CSV 文件
+- 神经网络可用时自动使用 CUDA；SVM 和随机森林使用 CPU
 
 ## 环境准备
 
@@ -64,6 +65,21 @@ python src/train_svm.py --c-value 10 --skip-test
 
 确定 `C` 后，再运行一次不带 `--skip-test` 的命令，完成最终测试评估并生成混淆矩阵。当前实现使用线性 SVM，适合直接对 MNIST 的 784 个像素特征进行基线比较。RBF 核 SVM 在 50,000 张图片上计算开销较大，因此暂未作为默认配置。
 
+运行随机森林：
+
+```powershell
+python src/train_random_forest.py
+```
+
+默认训练 200 棵树，并在每次分裂时从 `sqrt(784)` 个候选像素特征中选择。调参时可先跳过测试集，并把每次验证结果追加到 `results/random_forest_tuning.csv`：
+
+```powershell
+python src/train_random_forest.py --n-estimators 100 --skip-test
+python src/train_random_forest.py --n-estimators 200 --skip-test
+```
+
+选定参数后，运行不带 `--skip-test` 的命令执行最终测试评估。最终指标写入 `results/random_forest_metrics.csv`，混淆矩阵写入 `results/random_forest_confusion_matrix.csv`。也可用 `--max-train-samples 5000` 先缩小训练集快速体验。
+
 第一次运行时，程序会把 MNIST 数据下载到 `data/`。训练日志和最终测试准确率会显示在终端；每个 Dropout 配置、每轮训练的损失和准确率会写入 `results/dropout_comparison.csv`。
 
 ## 项目结构
@@ -76,7 +92,8 @@ mnist-model-comparison/
 ├── src/
 │   ├── mnist_data.py
 │   ├── train_nn.py
-│   └── train_svm.py
+│   ├── train_svm.py
+│   └── train_random_forest.py
 ├── data/       # 运行时下载，不提交到 Git
 └── results/    # 训练记录
 ```
