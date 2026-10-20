@@ -1,6 +1,6 @@
 # MNIST 模型比较
 
-这是一个用于学习机器学习分类流程的入门项目。项目使用 PyTorch 全连接神经网络、卷积神经网络（CNN）、scikit-learn 线性 SVM 和随机森林识别 MNIST 手写数字。MLP 部分比较不同 Dropout 比例；各模型使用相同的数据划分，并记录验证集和测试集指标。
+这是一个用于学习机器学习分类流程的入门项目。项目使用 PyTorch 全连接神经网络、基础 CNN、LeNet-5 风格 CNN、scikit-learn 线性 SVM 和随机森林识别 MNIST 手写数字。MLP 部分比较不同 Dropout 比例；各模型使用相同的数据划分，并记录验证集和测试集指标。
 
 ## 当前功能
 
@@ -8,6 +8,7 @@
 - 将官方训练集拆分为训练集（50,000 张）和验证集（10,000 张）
 - 比较 Dropout 比例 `0.0`、`0.2` 和 `0.5`
 - 使用基础 CNN 提取图片中的局部笔画特征
+- 使用 LeNet-5 风格网络比较经典卷积架构
 - 使用 `LinearSVC` 作为线性核 SVM 基线
 - 使用 `RandomForestClassifier` 作为树模型基线
 - 根据验证集准确率为各个模型选择配置或训练轮次，再进行最终测试集评估
@@ -59,6 +60,20 @@ python src/train_cnn.py --epochs 5 --batch-size 64 --learning-rate 0.001
 
 CNN 会根据验证集准确率保留最佳轮次的权重，再对测试集进行最终评估。训练记录写入 `results/cnn_training_history.csv`，测试指标和混淆矩阵分别写入 `results/cnn_metrics.csv` 和 `results/cnn_confusion_matrix.csv`。
 
+运行 LeNet-5 风格 CNN：
+
+```powershell
+python src/train_lenet.py
+```
+
+该实现将 28×28 图片补零到 32×32，再依次使用卷积、Tanh、平均池化和全连接层，体现 LeNet-5 的经典结构。为适配现代 PyTorch 分类训练，最后输出 10 类 logits 并使用交叉熵损失。也可以调整训练参数：
+
+```powershell
+python src/train_lenet.py --epochs 5 --batch-size 64 --learning-rate 0.001
+```
+
+训练历史、最终指标和测试集混淆矩阵分别保存到 `results/lenet_training_history.csv`、`results/lenet_metrics.csv` 和 `results/lenet_confusion_matrix.csv`。
+
 运行线性 SVM：
 
 ```powershell
@@ -109,6 +124,7 @@ mnist-model-comparison/
 │   ├── mnist_data.py
 │   ├── train_nn.py
 │   ├── train_cnn.py
+│   ├── train_lenet.py
 │   ├── train_svm.py
 │   └── train_random_forest.py
 ├── data/       # 运行时下载，不提交到 Git
