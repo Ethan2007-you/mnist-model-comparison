@@ -8,6 +8,8 @@ import random
 from copy import deepcopy
 from pathlib import Path
 
+import numpy as np
+from sklearn.metrics import confusion_matrix
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
@@ -32,17 +34,28 @@ def create_model(dropout_rate: float) -> nn.Sequential:
 @torch.no_grad()
 def evaluate(model: nn.Module, data_loader: DataLoader, device: torch.device) -> float:
     """Return classification accuracy as a percentage."""
+    accuracy, _, _ = evaluate_predictions(model, data_loader, device)
+    return accuracy
+
+
+@torch.no_grad()
+def evaluate_predictions(model: nn.Module, data_loader: DataLoader, device: torch.device):
+    """Return accuracy and labels/predictions for final reporting."""
     model.eval()
     correct = 0
     total = 0
+    all_labels = []
+    all_predictions = []
 
     for images, labels in data_loader:
         images, labels = images.to(device), labels.to(device)
         predictions = model(images).argmax(dim=1)
         correct += (predictions == labels).sum().item()
         total += labels.size(0)
+        all_labels.extend(labels.cpu().tolist())
+        all_predictions.extend(predictions.cpu().tolist())
 
-    return 100.0 * correct / total
+    return 100.0 * correct / total, all_labels, all_predictions
 
 
 def train_model(
@@ -138,6 +151,52 @@ def save_history(history: list[dict], output_path: Path) -> None:
         writer.writerows(history)
 
 
+def save_final_results(
+    dropout_rate: float,
+    validation_accuracy: float,
+    test_accuracy: float,
+    epochs: int,
+    batch_size: int,
+    labels: list[int],
+    predictions: list[int],
+) -> None:
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    with (RESULTS_DIR / "mlp_metrics.csv").open(
+        "w", newline="", encoding="utf-8"
+    ) as csv_file:
+        fields = [
+            "model",
+            "dropout_rate",
+            "epochs",
+            "batch_size",
+            "train_samples",
+            "best_validation_accuracy",
+            "test_accuracy",
+        ]
+        writer = csv.DictWriter(csv_file, fieldnames=fields)
+        writer.writeheader()
+        writer.writerow(
+            {
+                "model": "MLP",
+                "dropout_rate": dropout_rate,
+                "epochs": epochs,
+                "batch_size": batch_size,
+                "train_samples": 50_000,
+                "best_validation_accuracy": round(validation_accuracy, 2),
+                "test_accuracy": round(test_accuracy, 2),
+            }
+        )
+
+    matrix = confusion_matrix(labels, predictions, labels=np.arange(10))
+    with (RESULTS_DIR / "mlp_confusion_matrix.csv").open(
+        "w", newline="", encoding="utf-8"
+    ) as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(["true\\predicted", *range(10)])
+        for digit, row in enumerate(matrix):
+            writer.writerow([digit, *row.tolist()])
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Compare MNIST MLP models with different dropout rates."
@@ -192,15 +251,27 @@ def main() -> None:
             best_rate = dropout_rate
             best_val_acc = val_acc
 
-    test_acc = evaluate(best_model, test_loader, device)
+    test_acc, test_labels, test_predictions = evaluate_predictions(
+        best_model, test_loader, device
+    )
     output_path = RESULTS_DIR / "dropout_comparison.csv"
     save_history(all_history, output_path)
+    save_final_results(
+        best_rate,
+        best_val_acc,
+        test_acc,
+        args.epochs,
+        args.batch_size,
+        test_labels,
+        test_predictions,
+    )
 
     print("\n===== Final result =====")
     print(f"Best dropout rate: {best_rate}")
     print(f"Best validation accuracy: {best_val_acc:.2f}%")
     print(f"Test accuracy: {test_acc:.2f}%")
     print(f"Training history saved to: {output_path}")
+    print(f"Final metrics saved to: {RESULTS_DIR / 'mlp_metrics.csv'}")
 
 
 if __name__ == "__main__":

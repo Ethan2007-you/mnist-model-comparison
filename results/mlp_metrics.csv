@@ -1,0 +1,2 @@
+model,dropout_rate,epochs,batch_size,train_samples,best_validation_accuracy,test_accuracy
+MLP,0.2,5,64,50000,97.02,97.26

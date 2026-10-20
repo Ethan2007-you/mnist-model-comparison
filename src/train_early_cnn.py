@@ -1,4 +1,4 @@
-"""Train and evaluate a small convolutional neural network on MNIST."""
+"""Train an early S/C-layer CNN inspired by the 1980 Neocognitron."""
 
 from __future__ import annotations
 
@@ -21,29 +21,28 @@ RESULTS_DIR = PROJECT_ROOT / "results"
 SEED = 42
 
 
-class SmallCNN(nn.Module):
-    """A simple two-convolution network that keeps the image spatial layout."""
+class EarlySCNet(nn.Module):
+    """Small supervised S/C hierarchy inspired by early Neocognitron ideas.
+
+    This is a teaching adaptation: the original Neocognitron learned without
+    class labels and used different S/C response and competition rules.
+    """
 
     def __init__(self) -> None:
         super().__init__()
-        self.features = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=32, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2),
-        )
-        self.classifier = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(64 * 7 * 7, 128),
-            nn.ReLU(),
-            nn.Dropout(p=0.25),
-            nn.Linear(128, 10),
-        )
+        # S stages detect local patterns; fixed C stages pool nearby responses.
+        self.s1 = nn.Conv2d(1, 8, kernel_size=5)
+        self.c1 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.s2 = nn.Conv2d(8, 16, kernel_size=5)
+        self.c2 = nn.MaxPool2d(kernel_size=2, stride=2)
+        # 28x28 -> S1 24x24 -> C1 12x12 -> S2 8x8 -> C2 4x4.
+        self.classifier = nn.Linear(16 * 4 * 4, 10)
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
-        return self.classifier(self.features(images))
+        x = self.c1(torch.relu(self.s1(images)))
+        x = self.c2(torch.relu(self.s2(x)))
+        x = torch.flatten(x, start_dim=1)
+        return self.classifier(x)
 
 
 @torch.no_grad()
@@ -106,7 +105,7 @@ def save_confusion_matrix(labels: list[int], predictions: list[int], output_path
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Train a small CNN to classify MNIST handwritten digits."
+        description="Train an early S/C-style CNN to classify MNIST digits."
     )
     parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--batch-size", type=int, default=64)
@@ -139,7 +138,7 @@ def main() -> None:
     val_loader = DataLoader(val_data, batch_size=args.batch_size)
     test_loader = DataLoader(test_data, batch_size=args.batch_size)
 
-    model = SmallCNN().to(device)
+    model = EarlySCNet().to(device)
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
     best_val_accuracy = -1.0
@@ -188,13 +187,13 @@ def main() -> None:
     model.load_state_dict(best_weights)
     test_accuracy, test_labels, test_predictions = evaluate(model, test_loader, device)
 
-    history_path = RESULTS_DIR / "cnn_training_history.csv"
-    metrics_path = RESULTS_DIR / "cnn_metrics.csv"
-    matrix_path = RESULTS_DIR / "cnn_confusion_matrix.csv"
+    history_path = RESULTS_DIR / "early_cnn_training_history.csv"
+    metrics_path = RESULTS_DIR / "early_cnn_metrics.csv"
+    matrix_path = RESULTS_DIR / "early_cnn_confusion_matrix.csv"
     save_history(history, history_path)
     save_metrics(
         {
-            "model": "SmallCNN",
+            "model": "EarlySCNet",
             "epochs": args.epochs,
             "batch_size": args.batch_size,
             "learning_rate": args.learning_rate,
@@ -206,7 +205,7 @@ def main() -> None:
     )
     save_confusion_matrix(test_labels, test_predictions, matrix_path)
 
-    print("\n===== CNN final result =====")
+    print("\n===== Early S/C CNN final result =====")
     print(f"Best validation accuracy: {best_val_accuracy:.2f}%")
     print(f"Test accuracy: {test_accuracy:.2f}%")
     print(f"Training history saved to: {history_path}")

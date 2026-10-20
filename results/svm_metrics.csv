@@ -1,0 +1,2 @@
+model,c_value,train_samples,fit_seconds,validation_accuracy,test_accuracy
+LinearSVC,1.0,50000,23.37,91.12,91.64
